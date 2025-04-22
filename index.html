@@ -2,6 +2,12 @@
 <html>
 <head>
   <title>Submit to Google Sheet</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    .result { margin-top: 20px; padding: 10px; border-radius: 4px; }
+    .success { background-color: #dff0d8; color: #3c763d; }
+    .error { background-color: #f2dede; color: #a94442; }
+  </style>
 </head>
 <body>
   <h2>Enter Your Name</h2>
@@ -10,44 +16,50 @@
     <button type="submit">Submit</button>
   </form>
   
-  <div id="result"></div>
+  <div id="result" class="result"></div>
 
   <script>
-    const scriptURL = "https://script.google.com/macros/s/AKfycbzCuKCUqeq7WrjswkTJlNgwjC_wWBHVg860irCPr68aDSvADdCN2C6RIVC0EaV4usb5og/exec"; // Your Google Apps Script Web App URL
+    // Replace with your new script URL
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec"; 
     
     document.getElementById("myForm").addEventListener("submit", function(e) {
       e.preventDefault();
-      const name = document.getElementById("name").value;
       const resultDiv = document.getElementById("result");
+      const name = document.getElementById("name").value;
       
-      // Send data using JSONP approach (iframe)
       const form = document.createElement("form");
       form.method = "POST";
       form.action = scriptURL;
       form.target = "hidden-iframe";
       
-      // Add input field
       const nameField = document.createElement("input");
       nameField.type = "hidden";
       nameField.name = "name";
       nameField.value = name;
       form.appendChild(nameField);
       
-      // Create and use hidden iframe
       const iframe = document.createElement("iframe");
       iframe.name = "hidden-iframe";
       iframe.style.display = "none";
       document.body.appendChild(iframe);
       document.body.appendChild(form);
       
-      // Add event listener for iframe load
+      resultDiv.className = "result";
+      resultDiv.innerHTML = "Submitting...";
+      
       iframe.onload = function() {
-        resultDiv.innerHTML = "Submitted successfully!";
+        resultDiv.className = "result success";
+        resultDiv.innerHTML = "Submitted successfully! Check your Google Sheet.";
         document.getElementById("name").value = "";
+        
+        // Clean up
+        setTimeout(function() {
+          document.body.removeChild(form);
+          document.body.removeChild(iframe);
+        }, 1000);
       };
       
       form.submit();
-      resultDiv.innerHTML = "Submitting...";
     });
   </script>
 </body>
