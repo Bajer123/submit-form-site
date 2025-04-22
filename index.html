@@ -9,23 +9,45 @@
     <input type="text" id="name" name="name" required>
     <button type="submit">Submit</button>
   </form>
+  
+  <div id="result"></div>
 
   <script>
-    const scriptURL = "https://script.google.com/macros/s/AKfycbzCuKCUqeq7WrjswkTJlNgwjC_wWBHVg860irCPr68aDSvADdCN2C6RIVC0EaV4usb5og/exec"; // Replace this with your Apps Script URL
-
+    const scriptURL = "YOUR_SCRIPT_URL_HERE"; // Your Google Apps Script Web App URL
+    
     document.getElementById("myForm").addEventListener("submit", function(e) {
       e.preventDefault();
       const name = document.getElementById("name").value;
-
-      fetch(scriptURL, {
-        method: "POST",
-        body: JSON.stringify({ name: name }),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-      .then(response => alert("Submitted!"))
-      .catch(error => alert("Error: " + error));
+      const resultDiv = document.getElementById("result");
+      
+      // Send data using JSONP approach (iframe)
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = scriptURL;
+      form.target = "hidden-iframe";
+      
+      // Add input field
+      const nameField = document.createElement("input");
+      nameField.type = "hidden";
+      nameField.name = "name";
+      nameField.value = name;
+      form.appendChild(nameField);
+      
+      // Create and use hidden iframe
+      const iframe = document.createElement("iframe");
+      iframe.name = "hidden-iframe";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+      document.body.appendChild(form);
+      
+      // Add event listener for iframe load
+      iframe.onload = function() {
+        resultDiv.innerHTML = "Submitted successfully!";
+        document.getElementById("name").value = "";
+      };
+      
+      form.submit();
+      resultDiv.innerHTML = "Submitting...";
     });
   </script>
 </body>
