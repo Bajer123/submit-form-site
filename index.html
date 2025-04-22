@@ -381,7 +381,7 @@
       return true;
     }
     
-// Replace the handleSubmit function with this improved version
+// Replace the handleSubmit function with this JSONP approach
 function handleSubmit() {
   if (!validateAllQuestions()) {
     return;
@@ -390,8 +390,8 @@ function handleSubmit() {
   // Show loading overlay
   loadingOverlay.style.display = "flex";
   
-  // Create form data object
-  const formData = new FormData();
+  // Build data object to send
+  const formData = {};
   
   // Add all image data
   for (let i = 0; i < images.length; i++) {
@@ -399,43 +399,82 @@ function handleSubmit() {
     const decision = document.querySelector(`input[name="decision${i}"]:checked`).value;
     const confidence = document.querySelector(`input[name="confidence${i}"]:checked`).value;
     
-    formData.append(`imageId${i}`, imageId);
-    formData.append(`decision${i}`, decision);
-    formData.append(`confidence${i}`, confidence);
+    formData[`imageId${i}`] = imageId;
+    formData[`decision${i}`] = decision;
+    formData[`confidence${i}`] = confidence;
   }
   
-  // Use fetch API to submit the form
-  fetch(scriptURL, {
-    method: 'POST',
-    body: formData
-  })
-  .then(response => response.text())
-  .then(data => {
+  // Create a unique callback name
+  const callbackName = 'jsonpCallback_' + Math.round(100000 * Math.random());
+  
+  // Create script URL with callback
+  let url = scriptURL + '?callback=' + callbackName;
+  
+  // Add parameters to URL
+  for (const key in formData) {
+    if (formData.hasOwnProperty(key)) {
+      url += `&${encodeURIComponent(key)}=${encodeURIComponent(formData[key])}`;
+    }
+  }
+  
+  // Set up the JSONP callback
+  window[callbackName] = function(response) {
     // Hide loading overlay
     loadingOverlay.style.display = "none";
     
-    // Success message
-    resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-    resultDiv.className = "success";
+    if (response.result === "success") {
+      // Success message
+      resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+      resultDiv.className = "success";
+      
+      // Disable all form elements
+      const inputs = surveyForm.querySelectorAll("input, button");
+      inputs.forEach(input => input.disabled = true);
+      
+      // Show completion message
+      setTimeout(function() {
+        surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+      }, 1000);
+    } else {
+      // Error message
+      resultDiv.textContent = "An error occurred: " + (response.error || "Unknown error");
+      resultDiv.className = "error";
+    }
     
-    // Disable all form elements
-    const inputs = surveyForm.querySelectorAll("input, button");
-    inputs.forEach(input => input.disabled = true);
-    
-    // Show completion message
-    setTimeout(function() {
-      surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-    }, 1000);
-  })
-  .catch(error => {
-    // Hide loading overlay
+    // Clean up
+    document.body.removeChild(script);
+    delete window[callbackName];
+  };
+  
+  // Create script element
+  const script = document.createElement('script');
+  script.src = url;
+  
+  // Handle errors
+  script.onerror = function() {
     loadingOverlay.style.display = "none";
-    
-    // Error message
-    resultDiv.textContent = "An error occurred while submitting your responses. Please try again.";
+    resultDiv.textContent = "Network error occurred. Please try again.";
     resultDiv.className = "error";
-    console.error('Error:', error);
-  });
+    document.body.removeChild(script);
+    delete window[callbackName];
+  };
+  
+  // Set timeout in case the callback never runs
+  setTimeout(function() {
+    if (window[callbackName]) {
+      loadingOverlay.style.display = "none";
+      resultDiv.textContent = "Request timed out. Please try again.";
+      resultDiv.className = "error";
+      
+      if (script.parentNode) {
+        document.body.removeChild(script);
+      }
+      delete window[callbackName];
+    }
+  }, 10000);
+  
+  // Add script to document to start request
+  document.body.appendChild(script);
 }
     
     // Initialize the survey
