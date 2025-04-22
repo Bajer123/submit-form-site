@@ -1,38 +1,271 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Submit to Google Sheet</title>
+  <title>League of Legends Character Identification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .image-container {
+      margin: 20px 0;
+      max-width: 100%;
+    }
+    .image-container img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #ddd;
+    }
+    .question {
+      margin: 15px 0;
+      text-align: center;
+    }
+    .options {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 10px 0;
+    }
+    .likert {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 20px 0;
+    }
+    .likert-scale {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 500px;
+      margin: 10px 0;
+    }
+    .likert-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .controls {
+      margin: 20px 0;
+      text-align: center;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #0078d7;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin: 20px 0;
+      padding: 10px;
+      text-align: center;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
 </head>
 <body>
-  <h2>Enter Your Name</h2>
-  
-  <!-- Note the action attribute pointing to your script URL -->
-  <form id="myForm" method="POST" target="hiddenFrame" action="https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec">
-    <input type="text" id="name" name="name" required>
-    <button type="submit">Submit</button>
-  </form>
-  
-  <div id="result">Ready to submit</div>
+  <div class="container">
+    <h1>Is this a League of Legends character?</h1>
+    
+    <div class="image-container">
+      <img id="characterImage" src="" alt="Character Image">
+    </div>
+    
+    <div class="question">
+      <h2>This image contains a League of Legends character:</h2>
+      <div class="options">
+        <label>
+          <input type="radio" name="decision" value="agree" required> Agree
+        </label>
+        <label>
+          <input type="radio" name="decision" value="disagree"> Disagree
+        </label>
+      </div>
+    </div>
+    
+    <div class="likert">
+      <h2>How confident are you in your decision?</h2>
+      <div class="likert-scale">
+        <div class="likert-item">
+          <input type="radio" name="confidence" value="1" required>
+          <label>1<br>Not confident</label>
+        </div>
+        <div class="likert-item">
+          <input type="radio" name="confidence" value="2">
+          <label>2</label>
+        </div>
+        <div class="likert-item">
+          <input type="radio" name="confidence" value="3">
+          <label>3</label>
+        </div>
+        <div class="likert-item">
+          <input type="radio" name="confidence" value="4">
+          <label>4</label>
+        </div>
+        <div class="likert-item">
+          <input type="radio" name="confidence" value="5">
+          <label>5<br>Very confident</label>
+        </div>
+      </div>
+    </div>
+    
+    <form id="responseForm" method="POST" target="hiddenFrame">
+      <input type="hidden" id="imageId" name="imageId" value="">
+      <input type="hidden" id="decisionInput" name="decision" value="">
+      <input type="hidden" id="confidenceInput" name="confidence" value="">
+      
+      <div class="controls">
+        <button type="button" id="submitButton">Submit</button>
+      </div>
+    </form>
+    
+    <div id="result"></div>
+  </div>
   
   <!-- Hidden iframe to prevent page redirect -->
   <iframe name="hiddenFrame" id="hiddenFrame" style="display:none;"></iframe>
   
   <script>
-    // Get references to elements
-    const myForm = document.getElementById("myForm");
+    // Replace with your deployed Apps Script URL
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec";
+    
+    // Array of image URLs to display (replace with your actual image URLs)
+    const images = [
+      { id: "image1", url: "https://example.com/image1.jpg" },
+      { id: "image2", url: "https://example.com/image2.jpg" },
+      { id: "image3", url: "https://example.com/image3.jpg" }
+      // Add more images as needed
+    ];
+    
+    let currentImageIndex = 0;
+    
+    // Elements
+    const characterImage = document.getElementById("characterImage");
+    const responseForm = document.getElementById("responseForm");
+    const imageIdInput = document.getElementById("imageId");
+    const decisionInput = document.getElementById("decisionInput");
+    const confidenceInput = document.getElementById("confidenceInput");
+    const submitButton = document.getElementById("submitButton");
     const resultDiv = document.getElementById("result");
     const hiddenFrame = document.getElementById("hiddenFrame");
     
-    // Listen for form submission
-    myForm.addEventListener("submit", function() {
+    // Set form action
+    responseForm.action = scriptURL;
+    
+    // Load the first image
+    function loadCurrentImage() {
+      if (currentImageIndex < images.length) {
+        const image = images[currentImageIndex];
+        characterImage.src = image.url;
+        imageIdInput.value = image.id;
+        
+        // Reset form selections
+        const decisionRadios = document.getElementsByName("decision");
+        for (let radio of decisionRadios) {
+          radio.checked = false;
+        }
+        
+        const confidenceRadios = document.getElementsByName("confidence");
+        for (let radio of confidenceRadios) {
+          radio.checked = false;
+        }
+        
+        resultDiv.textContent = "";
+        resultDiv.className = "";
+      } else {
+        // All images have been shown
+        characterImage.style.display = "none";
+        resultDiv.textContent = "Thank you for completing the survey!";
+        resultDiv.className = "success";
+        document.querySelector(".question").style.display = "none";
+        document.querySelector(".likert").style.display = "none";
+        submitButton.style.display = "none";
+      }
+    }
+    
+    // Submit button click handler
+    submitButton.addEventListener("click", function() {
+      // Get selected decision
+      const decisionRadios = document.getElementsByName("decision");
+      let selectedDecision = "";
+      
+      for (let radio of decisionRadios) {
+        if (radio.checked) {
+          selectedDecision = radio.value;
+          break;
+        }
+      }
+      
+      // Get selected confidence
+      const confidenceRadios = document.getElementsByName("confidence");
+      let selectedConfidence = "";
+      
+      for (let radio of confidenceRadios) {
+        if (radio.checked) {
+          selectedConfidence = radio.value;
+          break;
+        }
+      }
+      
+      // Validate selections
+      if (!selectedDecision) {
+        resultDiv.textContent = "Please select whether you agree or disagree.";
+        resultDiv.className = "error";
+        return;
+      }
+      
+      if (!selectedConfidence) {
+        resultDiv.textContent = "Please select your confidence level.";
+        resultDiv.className = "error";
+        return;
+      }
+      
+      // Set values in hidden inputs
+      decisionInput.value = selectedDecision;
+      confidenceInput.value = selectedConfidence;
+      
+      // Submit the form
       resultDiv.textContent = "Submitting...";
+      resultDiv.className = "";
+      responseForm.submit();
     });
     
-    // Listen for iframe load (response received)
+    // Handle response from server
     hiddenFrame.addEventListener("load", function() {
-      resultDiv.textContent = "Submitted successfully!";
-      myForm.reset();
+      if (hiddenFrame.contentDocument.body.textContent.includes("Success")) {
+        resultDiv.textContent = "Response submitted successfully!";
+        resultDiv.className = "success";
+        
+        // Move to next image after a short delay
+        setTimeout(function() {
+          currentImageIndex++;
+          loadCurrentImage();
+        }, 1000);
+      } else {
+        resultDiv.textContent = "Error submitting response. Please try again.";
+        resultDiv.className = "error";
+      }
     });
+    
+    // Initialize first image
+    loadCurrentImage();
   </script>
 </body>
 </html>
