@@ -343,46 +343,71 @@
     }
     
     // Handle form submission
-    function handleSubmit(e) {
-      if (!validateAllQuestions()) {
-        e.preventDefault();
-        return;
-      }
-      
-      resultDiv.textContent = "Submitting your answers...";
-      resultDiv.className = "";
-      
-      // Success handler for iframe submission
-      hiddenIframe.onload = function() {
-        resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-        resultDiv.className = "success";
-        
-        // Disable all form elements
-        const inputs = surveyForm.querySelectorAll("input, button");
-        inputs.forEach(input => input.disabled = true);
-        
-        // Show completion message
-        setTimeout(function() {
-          surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-        }, 1000);
-      };
+    // Handle form submission
+function handleSubmit(e) {
+  e.preventDefault(); // Prevent the default form submission
+  
+  if (!validateAllQuestions()) {
+    return;
+  }
+  
+  resultDiv.textContent = "Submitting your answers...";
+  resultDiv.className = "";
+  
+  // Collect all form data
+  const formData = new FormData(surveyForm);
+  const jsonData = {};
+  
+  // Convert FormData to JSON
+  for (const [key, value] of formData.entries()) {
+    jsonData[key] = value;
+  }
+  
+  // Send data via fetch
+  fetch(scriptURL, {
+    method: 'POST',
+    body: new URLSearchParams(jsonData),
+    mode: 'no-cors', // This is important for CORS handling
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
     }
+  })
+  .then(() => {
+    resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+    resultDiv.className = "success";
+    
+    // Disable all form elements
+    const inputs = surveyForm.querySelectorAll("input, button");
+    inputs.forEach(input => input.disabled = true);
+    
+    // Show completion message
+    setTimeout(function() {
+      surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+    }, 1000);
+  })
+  .catch(error => {
+    resultDiv.textContent = "Error submitting form: " + error.message;
+    resultDiv.className = "error";
+    console.error('Error!', error.message);
+  });
+}
     
     // Initialize the survey
-    function initSurvey() {
-      createQuestionSets();
-      updateProgress();
-      
-      // Event listeners
-      prevButton.addEventListener("click", goToPreviousQuestion);
-      nextButton.addEventListener("click", goToNextQuestion);
-      submitButton.addEventListener("click", function() {
-        if (validateCurrentQuestion()) {
-          surveyForm.submit();
-        }
-      });
-      surveyForm.addEventListener("submit", handleSubmit);
+    // Initialize the survey
+function initSurvey() {
+  createQuestionSets();
+  updateProgress();
+  
+  // Event listeners
+  prevButton.addEventListener("click", goToPreviousQuestion);
+  nextButton.addEventListener("click", goToNextQuestion);
+  submitButton.addEventListener("click", function() {
+    if (validateCurrentQuestion()) {
+      // Don't automatically submit - let the handleSubmit function do it
     }
+  });
+  surveyForm.addEventListener("submit", handleSubmit);
+}
     
     // Start the survey
     initSurvey();
