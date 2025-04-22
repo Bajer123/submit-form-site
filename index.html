@@ -106,6 +106,15 @@
       margin-top: 5px;
       font-size: 14px;
     }
+    .image-error {
+      border: 2px solid red !important;
+      padding: 10px;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #ffeeee;
+    }
   </style>
 </head>
 <body>
@@ -123,20 +132,17 @@
       <!-- Images will be loaded here -->
     </div>
     
-    <form id="surveyForm" method="POST" target="hidden_iframe">
+    <form id="surveyForm">
       <!-- Question sets will be generated here -->
       
       <div class="controls">
         <button type="button" id="prevButton" style="display: none;">Previous</button>
         <button type="button" id="nextButton">Next</button>
-        <button type="submit" id="submitButton" style="display: none;">Submit All Answers</button>
+        <button type="button" id="submitButton" style="display: none;">Submit All Answers</button>
       </div>
     </form>
     
     <div id="result"></div>
-    
-    <!-- Hidden iframe for form submission -->
-    <iframe name="hidden_iframe" id="hidden_iframe" style="display:none;"></iframe>
   </div>
   
   <script>
@@ -145,9 +151,9 @@
     
     // Array of image configurations
     const images = [
-      { id: "image1", url: "./images/df.jpg" },
-      { id: "image2", url: "./images/League-of-legends-9073196.jpg" },
-      { id: "image3", url: "./images/league-of-legends-mobas-diversity-dota-2.jpg" }
+      { id: "image1", url: "https://raw.githubusercontent.com/Bajer123/submit-form-site/main/Images/df.jpg" },
+      { id: "image2", url: "https://raw.githubusercontent.com/Bajer123/submit-form-site/main/Images/League-of-legends-9073196.jpg" },
+      { id: "image3", url: "https://raw.githubusercontent.com/Bajer123/submit-form-site/main/Images/league-of-legends-mobas-diversity-dota-2.jpg" }
     ];
     
     // Elements
@@ -157,16 +163,12 @@
     const nextButton = document.getElementById("nextButton");
     const submitButton = document.getElementById("submitButton");
     const resultDiv = document.getElementById("result");
-    const hiddenIframe = document.getElementById("hidden_iframe");
     const progressFill = document.getElementById("progressFill");
     const progressText = document.getElementById("progressText");
     
     // Variables
     let currentImageIndex = 0;
     const questionSets = [];
-    
-    // Set form action
-    surveyForm.action = scriptURL;
     
     // Create question sets for all images
     function createQuestionSets() {
@@ -177,10 +179,15 @@
         questionSet.id = `question-set-${index}`;
         questionSet.style.display = index === 0 ? "block" : "none";
         
-        // Create image element
+        // Create image element with error handler
         const img = document.createElement("img");
         img.src = image.url;
         img.alt = `Image ${index + 1}`;
+        img.onerror = function() {
+          this.classList.add("image-error");
+          this.alt = `Error loading image ${index + 1}`;
+          console.error(`Failed to load image: ${image.url}`);
+        };
         
         // Create question container
         const questionDiv = document.createElement("div");
@@ -343,71 +350,75 @@
     }
     
     // Handle form submission
-    // Handle form submission
-function handleSubmit(e) {
-  e.preventDefault(); // Prevent the default form submission
-  
-  if (!validateAllQuestions()) {
-    return;
-  }
-  
-  resultDiv.textContent = "Submitting your answers...";
-  resultDiv.className = "";
-  
-  // Collect all form data
-  const formData = new FormData(surveyForm);
-  const jsonData = {};
-  
-  // Convert FormData to JSON
-  for (const [key, value] of formData.entries()) {
-    jsonData[key] = value;
-  }
-  
-  // Send data via fetch
-  fetch(scriptURL, {
-    method: 'POST',
-    body: new URLSearchParams(jsonData),
-    mode: 'no-cors', // This is important for CORS handling
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+    function handleSubmit() {
+      if (!validateAllQuestions()) {
+        return;
+      }
+      
+      resultDiv.textContent = "Submitting your answers...";
+      resultDiv.className = "";
+      
+      // Collect all data manually
+      const formData = {};
+      
+      // Add all image data
+      for (let i = 0; i < images.length; i++) {
+        formData[`imageId${i}`] = document.querySelector(`input[name="imageId${i}"]`).value;
+        formData[`decision${i}`] = document.querySelector(`input[name="decision${i}"]:checked`).value;
+        formData[`confidence${i}`] = document.querySelector(`input[name="confidence${i}"]:checked`).value;
+      }
+      
+      // Send data using XMLHttpRequest instead of fetch for better compatibility
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', scriptURL);
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      
+      // Convert the data to URLEncoded format
+      const urlEncodedData = Object.keys(formData)
+        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(formData[key]))
+        .join('&');
+      
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200) {
+            resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+            resultDiv.className = "success";
+            
+            // Disable all form elements
+            const inputs = surveyForm.querySelectorAll("input, button");
+            inputs.forEach(input => input.disabled = true);
+            
+            // Show completion message
+            setTimeout(function() {
+              surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+            }, 1000);
+          } else {
+            resultDiv.textContent = "Error submitting form. Please try again.";
+            resultDiv.className = "error";
+            console.error('Error with status code:', xhr.status);
+          }
+        }
+      };
+      
+      xhr.onerror = function() {
+        resultDiv.textContent = "Network error occurred. Please try again.";
+        resultDiv.className = "error";
+        console.error('Network error occurred');
+      };
+      
+      xhr.send(urlEncodedData);
     }
-  })
-  .then(() => {
-    resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-    resultDiv.className = "success";
-    
-    // Disable all form elements
-    const inputs = surveyForm.querySelectorAll("input, button");
-    inputs.forEach(input => input.disabled = true);
-    
-    // Show completion message
-    setTimeout(function() {
-      surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-    }, 1000);
-  })
-  .catch(error => {
-    resultDiv.textContent = "Error submitting form: " + error.message;
-    resultDiv.className = "error";
-    console.error('Error!', error.message);
-  });
-}
     
     // Initialize the survey
-    // Initialize the survey
-function initSurvey() {
-  createQuestionSets();
-  updateProgress();
-  
-  // Event listeners
-  prevButton.addEventListener("click", goToPreviousQuestion);
-  nextButton.addEventListener("click", goToNextQuestion);
-  submitButton.addEventListener("click", function() {
-    if (validateCurrentQuestion()) {
-      // Don't automatically submit - let the handleSubmit function do it
+    function initSurvey() {
+      createQuestionSets();
+      updateProgress();
+      
+      // Event listeners
+      prevButton.addEventListener("click", goToPreviousQuestion);
+      nextButton.addEventListener("click", goToNextQuestion);
+      submitButton.addEventListener("click", handleSubmit);
     }
-  });
-  surveyForm.addEventListener("submit", handleSubmit);
-}
     
     // Start the survey
     initSurvey();
