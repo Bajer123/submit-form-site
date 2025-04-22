@@ -359,54 +359,47 @@
       resultDiv.className = "";
       
       // Collect all data manually
-      const formData = {};
+      const formData = new FormData();
       
       // Add all image data
       for (let i = 0; i < images.length; i++) {
-        formData[`imageId${i}`] = document.querySelector(`input[name="imageId${i}"]`).value;
-        formData[`decision${i}`] = document.querySelector(`input[name="decision${i}"]:checked`).value;
-        formData[`confidence${i}`] = document.querySelector(`input[name="confidence${i}"]:checked`).value;
+        formData.append(`imageId${i}`, document.querySelector(`input[name="imageId${i}"]`).value);
+        formData.append(`decision${i}`, document.querySelector(`input[name="decision${i}"]:checked`).value);
+        formData.append(`confidence${i}`, document.querySelector(`input[name="confidence${i}"]:checked`).value);
       }
       
-      // Send data using XMLHttpRequest instead of fetch for better compatibility
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', scriptURL);
-      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      // Convert form data to URL-encoded string
+      const urlEncodedData = new URLSearchParams(formData).toString();
       
-      // Convert the data to URLEncoded format
-      const urlEncodedData = Object.keys(formData)
-        .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(formData[key]))
-        .join('&');
-      
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200) {
-            resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-            resultDiv.className = "success";
-            
-            // Disable all form elements
-            const inputs = surveyForm.querySelectorAll("input, button");
-            inputs.forEach(input => input.disabled = true);
-            
-            // Show completion message
-            setTimeout(function() {
-              surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-            }, 1000);
-          } else {
-            resultDiv.textContent = "Error submitting form. Please try again.";
-            resultDiv.className = "error";
-            console.error('Error with status code:', xhr.status);
-          }
-        }
-      };
-      
-      xhr.onerror = function() {
-        resultDiv.textContent = "Network error occurred. Please try again.";
+      // Use fetch API with appropriate CORS settings
+      fetch(scriptURL, {
+        method: 'POST',
+        mode: 'no-cors', // This is important for CORS issues with Google Apps Script
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: urlEncodedData
+      })
+      .then(response => {
+        // Since we're using no-cors mode, we won't get a readable response
+        // So we just assume success if we get this far
+        resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+        resultDiv.className = "success";
+        
+        // Disable all form elements
+        const inputs = surveyForm.querySelectorAll("input, button");
+        inputs.forEach(input => input.disabled = true);
+        
+        // Show completion message
+        setTimeout(function() {
+          surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+        }, 1000);
+      })
+      .catch(error => {
+        resultDiv.textContent = "Error submitting form. Please try again.";
         resultDiv.className = "error";
-        console.error('Network error occurred');
-      };
-      
-      xhr.send(urlEncodedData);
+        console.error('Error:', error);
+      });
     }
     
     // Initialize the survey
