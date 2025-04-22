@@ -349,58 +349,57 @@
       return true;
     }
     
-    // Handle form submission
-    function handleSubmit() {
-      if (!validateAllQuestions()) {
-        return;
-      }
-      
-      resultDiv.textContent = "Submitting your answers...";
-      resultDiv.className = "";
-      
-      // Collect all data manually
-      const formData = new FormData();
-      
-      // Add all image data
-      for (let i = 0; i < images.length; i++) {
-        formData.append(`imageId${i}`, document.querySelector(`input[name="imageId${i}"]`).value);
-        formData.append(`decision${i}`, document.querySelector(`input[name="decision${i}"]:checked`).value);
-        formData.append(`confidence${i}`, document.querySelector(`input[name="confidence${i}"]:checked`).value);
-      }
-      
-      // Convert form data to URL-encoded string
-      const urlEncodedData = new URLSearchParams(formData).toString();
-      
-      // Use fetch API with appropriate CORS settings
-      fetch(scriptURL, {
-        method: 'POST',
-        mode: 'no-cors', // This is important for CORS issues with Google Apps Script
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: urlEncodedData
-      })
-      .then(response => {
-        // Since we're using no-cors mode, we won't get a readable response
-        // So we just assume success if we get this far
-        resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-        resultDiv.className = "success";
-        
-        // Disable all form elements
-        const inputs = surveyForm.querySelectorAll("input, button");
-        inputs.forEach(input => input.disabled = true);
-        
-        // Show completion message
-        setTimeout(function() {
-          surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-        }, 1000);
-      })
-      .catch(error => {
-        resultDiv.textContent = "Error submitting form. Please try again.";
-        resultDiv.className = "error";
-        console.error('Error:', error);
-      });
+  // Handle form submission
+  function handleSubmit() {
+    if (!validateAllQuestions()) {
+      return;
     }
+    
+    resultDiv.textContent = "Submitting your answers...";
+    resultDiv.className = "";
+    
+    // Create a URL-encoded string manually
+    let formDataParts = [];
+    
+    // Add all image data
+    for (let i = 0; i < images.length; i++) {
+      formDataParts.push(`imageId${i}=${encodeURIComponent(document.querySelector(`input[name="imageId${i}"]`).value)}`);
+      formDataParts.push(`decision${i}=${encodeURIComponent(document.querySelector(`input[name="decision${i}"]:checked`).value)}`);
+      formDataParts.push(`confidence${i}=${encodeURIComponent(document.querySelector(`input[name="confidence${i}"]:checked`).value)}`);
+    }
+    
+    // Join all parts with &
+    const formDataString = formDataParts.join('&');
+    
+    // Use fetch with no-cors mode
+    fetch(scriptURL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formDataString
+    })
+    .then(() => {
+      // Since we're using no-cors mode, we won't get a parseable response
+      resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+      resultDiv.className = "success";
+      
+      // Disable all form elements
+      const inputs = surveyForm.querySelectorAll("input, button");
+      inputs.forEach(input => input.disabled = true);
+      
+      // Show completion message
+      setTimeout(function() {
+        surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+      }, 1000);
+    })
+    .catch(error => {
+      resultDiv.textContent = "Error submitting form. Please try again.";
+      resultDiv.className = "error";
+      console.error('Error:', error);
+    });
+  } 
     
     // Initialize the survey
     function initSurvey() {
