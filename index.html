@@ -2,64 +2,36 @@
 <html>
 <head>
   <title>Submit to Google Sheet</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; }
-    .result { margin-top: 20px; padding: 10px; border-radius: 4px; }
-    .success { background-color: #dff0d8; color: #3c763d; }
-    .error { background-color: #f2dede; color: #a94442; }
-  </style>
 </head>
 <body>
   <h2>Enter Your Name</h2>
-  <form id="myForm">
+  
+  <!-- Note the action attribute pointing to your script URL -->
+  <form id="myForm" method="POST" target="hiddenFrame" action="https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec">
     <input type="text" id="name" name="name" required>
     <button type="submit">Submit</button>
   </form>
   
-  <div id="result" class="result"></div>
-
+  <div id="result">Ready to submit</div>
+  
+  <!-- Hidden iframe to prevent page redirect -->
+  <iframe name="hiddenFrame" id="hiddenFrame" style="display:none;"></iframe>
+  
   <script>
-    // Replace with your new script URL
-    const scriptURL = "https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec"; 
+    // Get references to elements
+    const myForm = document.getElementById("myForm");
+    const resultDiv = document.getElementById("result");
+    const hiddenFrame = document.getElementById("hiddenFrame");
     
-    document.getElementById("myForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const resultDiv = document.getElementById("result");
-      const name = document.getElementById("name").value;
-      
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = scriptURL;
-      form.target = "hidden-iframe";
-      
-      const nameField = document.createElement("input");
-      nameField.type = "hidden";
-      nameField.name = "name";
-      nameField.value = name;
-      form.appendChild(nameField);
-      
-      const iframe = document.createElement("iframe");
-      iframe.name = "hidden-iframe";
-      iframe.style.display = "none";
-      document.body.appendChild(iframe);
-      document.body.appendChild(form);
-      
-      resultDiv.className = "result";
-      resultDiv.innerHTML = "Submitting...";
-      
-      iframe.onload = function() {
-        resultDiv.className = "result success";
-        resultDiv.innerHTML = "Submitted successfully! Check your Google Sheet.";
-        document.getElementById("name").value = "";
-        
-        // Clean up
-        setTimeout(function() {
-          document.body.removeChild(form);
-          document.body.removeChild(iframe);
-        }, 1000);
-      };
-      
-      form.submit();
+    // Listen for form submission
+    myForm.addEventListener("submit", function() {
+      resultDiv.textContent = "Submitting...";
+    });
+    
+    // Listen for iframe load (response received)
+    hiddenFrame.addEventListener("load", function() {
+      resultDiv.textContent = "Submitted successfully!";
+      myForm.reset();
     });
   </script>
 </body>
