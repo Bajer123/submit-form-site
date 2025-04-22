@@ -115,9 +115,40 @@
       justify-content: center;
       background-color: #ffeeee;
     }
+    #loadingOverlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <p>Submitting your responses...</p>
+  </div>
+
   <div class="container">
     <h1>League of Legends Character Survey</h1>
     
@@ -146,7 +177,7 @@
   </div>
   
   <script>
-    // Replace with your deployed Apps Script URL
+    // Replace with your deployed Apps Script URL (update this with your new deployment URL)
     const scriptURL = "https://script.google.com/macros/s/AKfycbxey8k8rpQxOtrV-TN-CknQP5L8Oj6u-JrcFN3DDMLrfbWvEeGvlnsqy1NebIXeGBm4_A/exec";
     
     // Array of image configurations
@@ -165,6 +196,7 @@
     const resultDiv = document.getElementById("result");
     const progressFill = document.getElementById("progressFill");
     const progressText = document.getElementById("progressText");
+    const loadingOverlay = document.getElementById("loadingOverlay");
     
     // Variables
     let currentImageIndex = 0;
@@ -349,57 +381,84 @@
       return true;
     }
     
-  // Handle form submission
-  function handleSubmit() {
-    if (!validateAllQuestions()) {
-      return;
-    }
-    
-    resultDiv.textContent = "Submitting your answers...";
-    resultDiv.className = "";
-    
-    // Create a URL-encoded string manually
-    let formDataParts = [];
-    
-    // Add all image data
-    for (let i = 0; i < images.length; i++) {
-      formDataParts.push(`imageId${i}=${encodeURIComponent(document.querySelector(`input[name="imageId${i}"]`).value)}`);
-      formDataParts.push(`decision${i}=${encodeURIComponent(document.querySelector(`input[name="decision${i}"]:checked`).value)}`);
-      formDataParts.push(`confidence${i}=${encodeURIComponent(document.querySelector(`input[name="confidence${i}"]:checked`).value)}`);
-    }
-    
-    // Join all parts with &
-    const formDataString = formDataParts.join('&');
-    
-    // Use fetch with no-cors mode
-    fetch(scriptURL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formDataString
-    })
-    .then(() => {
-      // Since we're using no-cors mode, we won't get a parseable response
-      resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-      resultDiv.className = "success";
+    // Handle form submission with iframe approach
+    function handleSubmit() {
+      if (!validateAllQuestions()) {
+        return;
+      }
       
-      // Disable all form elements
-      const inputs = surveyForm.querySelectorAll("input, button");
-      inputs.forEach(input => input.disabled = true);
+      // Show loading overlay
+      loadingOverlay.style.display = "flex";
       
-      // Show completion message
+      // Build query string manually
+      let queryString = "";
+      
+      // Add all image data
+      for (let i = 0; i < images.length; i++) {
+        const imageId = document.querySelector(`input[name="imageId${i}"]`).value;
+        const decision = document.querySelector(`input[name="decision${i}"]:checked`).value;
+        const confidence = document.querySelector(`input[name="confidence${i}"]:checked`).value;
+        
+        queryString += `&imageId${i}=${encodeURIComponent(imageId)}`;
+        queryString += `&decision${i}=${encodeURIComponent(decision)}`;
+        queryString += `&confidence${i}=${encodeURIComponent(confidence)}`;
+      }
+      
+      // Remove the first & and add ? instead
+      queryString = "?" + queryString.substring(1);
+      
+      // Create an iframe for submission (hidden)
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      
+      // Set up message listener for when iframe loads
+      window.addEventListener('message', function processMessage(event) {
+        // Hide loading overlay
+        loadingOverlay.style.display = "none";
+        
+        // Success message
+        resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
+        resultDiv.className = "success";
+        
+        // Disable all form elements
+        const inputs = surveyForm.querySelectorAll("input, button");
+        inputs.forEach(input => input.disabled = true);
+        
+        // Show completion message
+        setTimeout(function() {
+          surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+        }, 1000);
+        
+        // Clean up
+        window.removeEventListener('message', processMessage);
+        setTimeout(function() {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, false);
+      
+      // Set iframe source to trigger the form submission
+      iframe.src = scriptURL + queryString;
+      
+      // Set a timeout in case the message event doesn't fire
       setTimeout(function() {
-        surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-      }, 1000);
-    })
-    .catch(error => {
-      resultDiv.textContent = "Error submitting form. Please try again.";
-      resultDiv.className = "error";
-      console.error('Error:', error);
-    });
-  } 
+        loadingOverlay.style.display = "none";
+        resultDiv.textContent = "Your responses have been submitted. Thank you!";
+        resultDiv.className = "success";
+        
+        // Disable all form elements
+        const inputs = surveyForm.querySelectorAll("input, button");
+        inputs.forEach(input => input.disabled = true);
+        
+        // Show completion message
+        setTimeout(function() {
+          surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+      }, 5000);
+    }
     
     // Initialize the survey
     function initSurvey() {
