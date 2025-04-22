@@ -178,7 +178,7 @@
   
   <script>
     // Replace with your deployed Apps Script URL (update this with your new deployment URL)
-    const scriptURL = "https://script.google.com/macros/s/AKfycby4fkC4RQAcBOfKl0-YytpyFREtR3Ir3GJrIM3Y0tTPNdm9SVqEZmLHom3PB2jK_dMp3w/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbwgJwSmkYUO2wKXQ6toA9k-ICn9q4j_bWLdTjjlhSD-LOvHe55nfHXcvbOteuD__CTbzQ/exec";
     
     // Array of image configurations
     const images = [
@@ -381,7 +381,7 @@
       return true;
     }
     
-// Replace the handleSubmit function with this JSONP approach
+// Replace the handleSubmit function with this iframe approach
 function handleSubmit() {
   if (!validateAllQuestions()) {
     return;
@@ -390,91 +390,75 @@ function handleSubmit() {
   // Show loading overlay
   loadingOverlay.style.display = "flex";
   
-  // Build data object to send
-  const formData = {};
+  // Create a unique name for the iframe
+  const iframeName = 'submitFrame_' + Math.round(100000 * Math.random());
   
-  // Add all image data
+  // Create a hidden iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.name = iframeName;
+  document.body.appendChild(iframe);
+  
+  // Create a form element
+  const form = document.createElement('form');
+  form.method = 'post';
+  form.action = scriptURL;
+  form.target = iframeName;
+  
+  // Add all image data as hidden fields
   for (let i = 0; i < images.length; i++) {
     const imageId = document.querySelector(`input[name="imageId${i}"]`).value;
     const decision = document.querySelector(`input[name="decision${i}"]:checked`).value;
     const confidence = document.querySelector(`input[name="confidence${i}"]:checked`).value;
     
-    formData[`imageId${i}`] = imageId;
-    formData[`decision${i}`] = decision;
-    formData[`confidence${i}`] = confidence;
+    // Create and append hidden inputs
+    let input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = `imageId${i}`;
+    input.value = imageId;
+    form.appendChild(input);
+    
+    input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = `decision${i}`;
+    input.value = decision;
+    form.appendChild(input);
+    
+    input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = `confidence${i}`;
+    input.value = confidence;
+    form.appendChild(input);
   }
   
-  // Create a unique callback name
-  const callbackName = 'jsonpCallback_' + Math.round(100000 * Math.random());
+  // Add form to document
+  document.body.appendChild(form);
   
-  // Create script URL with callback
-  let url = scriptURL + '?callback=' + callbackName;
-  
-  // Add parameters to URL
-  for (const key in formData) {
-    if (formData.hasOwnProperty(key)) {
-      url += `&${encodeURIComponent(key)}=${encodeURIComponent(formData[key])}`;
-    }
-  }
-  
-  // Set up the JSONP callback
-  window[callbackName] = function(response) {
+  // Set timeout for completion (assuming success after 3 seconds)
+  setTimeout(function() {
     // Hide loading overlay
     loadingOverlay.style.display = "none";
     
-    if (response.result === "success") {
-      // Success message
-      resultDiv.textContent = "Thank you! Your responses have been submitted successfully.";
-      resultDiv.className = "success";
-      
-      // Disable all form elements
-      const inputs = surveyForm.querySelectorAll("input, button");
-      inputs.forEach(input => input.disabled = true);
-      
-      // Show completion message
-      setTimeout(function() {
-        surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
-      }, 1000);
-    } else {
-      // Error message
-      resultDiv.textContent = "An error occurred: " + (response.error || "Unknown error");
-      resultDiv.className = "error";
-    }
+    // Success message
+    resultDiv.textContent = "Thank you! Your responses have been submitted.";
+    resultDiv.className = "success";
+    
+    // Disable all form elements
+    const inputs = surveyForm.querySelectorAll("input, button");
+    inputs.forEach(input => input.disabled = true);
+    
+    // Show completion message
+    setTimeout(function() {
+      surveyForm.innerHTML = "<h2>Survey Complete</h2><p>Thank you for participating in our survey!</p>";
+    }, 1000);
     
     // Clean up
-    document.body.removeChild(script);
-    delete window[callbackName];
-  };
+    if (form.parentNode) document.body.removeChild(form);
+    if (iframe.parentNode) document.body.removeChild(iframe);
+  }, 3000);
   
-  // Create script element
-  const script = document.createElement('script');
-  script.src = url;
-  
-  // Handle errors
-  script.onerror = function() {
-    loadingOverlay.style.display = "none";
-    resultDiv.textContent = "Network error occurred. Please try again.";
-    resultDiv.className = "error";
-    document.body.removeChild(script);
-    delete window[callbackName];
-  };
-  
-  // Set timeout in case the callback never runs
-  setTimeout(function() {
-    if (window[callbackName]) {
-      loadingOverlay.style.display = "none";
-      resultDiv.textContent = "Request timed out. Please try again.";
-      resultDiv.className = "error";
-      
-      if (script.parentNode) {
-        document.body.removeChild(script);
-      }
-      delete window[callbackName];
-    }
-  }, 10000);
-  
-  // Add script to document to start request
-  document.body.appendChild(script);
+  // Submit the form
+  form.submit();
 }
     
     // Initialize the survey
